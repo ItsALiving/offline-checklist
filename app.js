@@ -243,8 +243,15 @@ function wireControls(){
 
 // ---- Init -------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-  wireAll();
-  wireControls();
-  wireCollapsers();
-  updateProgress();
+  console.log("✅ app.js loaded and DOM ready");
+
+  try {
+    wireAll();
+    wireControls();
+    wireCollapsers();
+    updateProgress();
+  } catch (err) {
+    console.error("❌ Error during init:", err);
+  }
 });
+
