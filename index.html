@@ -2,22 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>My Offline App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- PWA bits -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#0b1220" />
+  <!-- (Optional) Google font to make it look nicer -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>Server Build Checklist</title>
 </head>
 <body>
-  <h1>It works offline</h1>
-  <p id="status">Checking service worker…</p>
-  <label><input type="checkbox" id="cb"> CheckBox</label>
+  <main class="container">
+    <h1>Server Build Checklist</h1>
+    <p class="muted">This starter shows structure only—adjust text and add sections as you go.</p>
 
-  <script src="app.js"></script>
+    <section class="card">
+      <h2>Hardware</h2>
+      <label class="check"><input type="checkbox" id="case" data-key="hw_case"> Case installed</label>
+      <label class="check"><input type="checkbox" id="motherboard" data-key="hw_mobo"> Motherboard mounted</label>
+      <label class="check"><input type="checkbox" id="cpu" data-key="hw_cpu"> CPU installed</label>
+    </section>
+
+    <section class="card">
+      <h2>Software</h2>
+      <label class="check"><input type="checkbox" id="bios" data-key="sw_bios"> BIOS updated</label>
+      <label class="check"><input type="checkbox" id="win" data-key="sw_win"> Windows installed</label>
+    </section>
+
+    <div class="actions">
+      <button id="clear">Clear all</button>
+    </div>
+
+    <p id="sw-status" class="ok" hidden>Service worker registered ✅</p>
+  </main>
+
+  <script src="app.js" defer></script>
+  <script>
+    // simple SW registration (keep yours if you already have it)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(() => {
+        document.getElementById('sw-status').hidden = false;
+      });
+    }
+  </script>
 </body>
 </html>
-
-
