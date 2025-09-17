@@ -1,80 +1,48 @@
-// sw.js
-// --- Bump VERSION on each deploy (or let GitHub Actions rewrite it) ---
-const VERSION = 'v2025-09-17-01';
+// Very small “cache first for app shell” SW.
+// If you only need online behavior, you can delete this file and the registration.
 
-// Figure out the repo subfolder (e.g., /offline-checklist/ on GitHub Pages)
-const BASE = self.location.pathname.replace(/sw\.js$/, '');
-
-// Static files to pre-cache (prefix with BASE so it works in subpaths)
-const STATIC_ASSETS = [
-  `${BASE}`,
-  `${BASE}index.html`,
-  `${BASE}styles.css`,
-  `${BASE}app.js`,
-  `${BASE}manifest.webmanifest`,
-  // Optional icons if you add them:
-  // `${BASE}icons/icon-192.png`,
-  // `${BASE}icons/icon-512.png`,
+const CACHE_VERSION = 'v3'; // bump to refresh old caches
+const CACHE_NAME = `server-checklist-${CACHE_VERSION}`;
+const ASSETS = [
+  './',                 // index.html
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.webmanifest',
 ];
 
-self.addEventListener('install', (event) => {
-  // Start using the new SW immediately
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(VERSION).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
 });
 
-self.addEventListener('activate', (event) => {
-  // Clear old caches, take control of open tabs
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k !== VERSION ? caches.delete(k) : null)))
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k !== CACHE_NAME ? caches.delete(k) : null)));
+    await self.clients.claim();
+  })());
 });
 
-// Handle messages from the page (used to trigger skipWaiting)
-self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
-});
-
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  // Only handle GET
   if (req.method !== 'GET') return;
 
-  const accept = req.headers.get('accept') || '';
-
-  // HTML: Network-first (so new deploys are picked up right away)
-  if (accept.includes('text/html')) {
-    event.respondWith(networkFirst(req));
-    return;
-  }
-
-  // Everything else (CSS/JS/images): Stale-while-revalidate
-  event.respondWith(staleWhileRevalidate(req));
+  e.respondWith((async () => {
+    // Try cache first
+    const hit = await caches.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    // Else fetch and (best-effort) cache
+    try{
+      const res = await fetch(req);
+      const c = await caches.open(CACHE_NAME);
+      c.put(req, res.clone());
+      return res;
+    }catch{
+      // Offline fallback: serve index for navigations
+      if (req.mode === 'navigate') return caches.match('./index.html');
+      throw err;
+    }
+  })());
 });
-
-// --- Strategies ---
-
-async function networkFirst(req) {
-  const cache = await caches.open(VERSION);
-  try {
-    const fresh = await fetch(req, { cache: 'no-store' });
-    cache.put(req, fresh.clone());
-    return fresh;
-  } catch {
-    const cached = await cache.match(req) || await caches.match(`${BASE}index.html`);
-    return cached || new Response('Offline', { status: 503 });
-  }
-}
-
-async function staleWhileRevalidate(req) {
-  const cache = await caches.open(VERSION);
-  const cached = await cache.match(req);
-  const fetchPromise = fetch(req).then((res) => {
-    cache.put(req, res.clone());
-    return res;
-  }).catch(() => cached);
-  return cached || fetchPromise;
-}
